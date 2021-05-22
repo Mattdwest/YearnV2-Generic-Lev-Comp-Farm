@@ -116,3 +116,4 @@ def strategy(strategist, keeper, vault,  Strategy, cdai):
 @pytest.fixture
 def strategy_deployed(strategy):
     yield strategy
+
