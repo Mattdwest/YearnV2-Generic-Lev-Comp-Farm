@@ -4,13 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {BaseStrategy, StrategyParams, VaultAPI} from "@yearnvaults/contracts/BaseStrategy.sol";
 
-//dydx off since no flash loans
-//import "./Interfaces/DyDx/DydxFlashLoanBase.sol";
-//import "./Interfaces/DyDx/ICallee.sol";
-
-//aave off since no flash loans
-//import "./Interfaces/Aave/ILendingPoolAddressesProvider.sol";
-//import "./Interfaces/Aave/ILendingPool.sol";
+//no flash loans
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -54,10 +48,6 @@ contract Strategy is BaseStrategy {
 
 
     //**disabling flash loans to play nicely with non-stablecoins**
-    //Flash Loan Providers
-    //address private constant SOLO = 0x1E0447b19BB6EcFdAe1e4AE1694b0C3659614e4e;
-    //address private constant AAVE_LENDING = 0x24a42fD28C976A61Df5D00D0599C34c4f90748c8;
-    //ILendingPoolAddressesProvider public addressesProvider;
 
     // Comptroller address for compound.finance
     ComptrollerI public constant compound = ComptrollerI(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
@@ -71,7 +61,7 @@ contract Strategy is BaseStrategy {
     address public constant weth = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
     //Operating variables
-    uint256 public collateralTarget = 0.73 ether; // 73%
+    uint256 public collateralTarget = 0.55 ether; // 55%, UNI has a 60% collat ratio LTV
     uint256 public blocksToLiquidationDangerZone = 46500; // 7 days =  60*60*24*7/13
 
     uint256 public minWant = 0; //Only lend if we have enough want to be worth it. Can be set to non-zero
