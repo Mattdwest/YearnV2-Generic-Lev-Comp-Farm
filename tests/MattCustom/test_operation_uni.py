@@ -1,13 +1,5 @@
-# TODO: Add tests here that show the normal operation of this strategy
-#       Suggestions to include:
-#           - strategy loading and unloading (via Vault addStrategy/revokeStrategy)
-#           - change in loading (from low to high and high to low)
-#           - strategy operation at different loading levels (anticipated and "extreme")
-
 import pytest
-
-from brownie import Wei, accounts, Contract, config
-from brownie import Strategy
+from brownie import Wei, accounts, Contract, config, Strategy, ZERO_ADDRESS
 
 
 @pytest.mark.require_network("mainnet-fork")
@@ -47,8 +39,15 @@ def test_operation(
 
     liveVault.setManagementFee(0, {"from": liveGov})
     liveVault.setPerformanceFee(0, {"from": liveGov})
-    liveVault.updateStrategyDebtRatio(uniLend, 3800, {"from": liveGov})
-    liveVault.addStrategy(strategy, 3_000, 0, 2 ** 256 - 1, 1_000, {"from": liveGov})
+
+    for i in range(0, 20):
+        strat = liveVault.withdrawalQueue(i)
+        if strat == ZERO_ADDRESS:
+            break
+
+        liveVault.revokeStrategy(strat, {"from": liveGov})
+
+    liveVault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": liveGov})
 
     # First harvest
     uniLend.harvest({"from": liveGov})

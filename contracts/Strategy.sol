@@ -23,7 +23,7 @@ import "./Interfaces/Compound/ComptrollerI.sol";
 
 interface IUni{
     function getAmountsOut(
-        uint256 amountIn, 
+        uint256 amountIn,
         address[] calldata path
     ) external view returns (uint256[] memory amounts);
 
@@ -173,7 +173,7 @@ contract Strategy is BaseStrategy {
      * NOTE: this call and `tendTrigger` should never return `true` at the same time.
      */
     function harvestTrigger(uint256 gasCost) public override view returns (bool) {
-        
+
         StrategyParams memory params = vault.strategies(address(this));
 
         // Should not trigger if strategy is not activated
@@ -224,11 +224,11 @@ contract Strategy is BaseStrategy {
             path[1] = end;
         }else{
             path = new address[](3);
-            path[0] = start; 
-            path[1] = weth; 
+            path[0] = start;
+            path[1] = weth;
             path[2] = end;
         }
- 
+
         uint256[] memory amounts = IUni(uniswapRouter).getAmountsOut(_amount, path);
 
         return amounts[amounts.length - 1];
@@ -288,12 +288,12 @@ contract Strategy is BaseStrategy {
         if(totalSupply > 0){
             blockShareSupply = deposits.mul(distributionPerBlock).div(totalSupply);
         }
-        
+
         uint256 blockShareBorrow = 0;
         if(totalBorrow > 0){
             blockShareBorrow = borrows.mul(distributionPerBlock).div(totalBorrow);
         }
-        
+
         //how much we expect to earn per block
         uint256 blockShare = blockShareSupply.add(blockShareBorrow);
 
@@ -354,7 +354,7 @@ contract Strategy is BaseStrategy {
             //no position to harvest
             //but we may have some debt to return
             //it is too expensive to free more debt in this method so we do it in adjust position
-            _debtPayment = Math.min(wantBalance, _debtOutstanding); 
+            _debtPayment = Math.min(wantBalance, _debtOutstanding);
             return (_profit, _loss, _debtPayment);
         }
         (uint256 deposits, uint256 borrows) = getLivePosition();
@@ -376,7 +376,7 @@ contract Strategy is BaseStrategy {
             _profit = balance - debt;
 
             if (wantBalance < _profit) {
-                //all reserve is profit                
+                //all reserve is profit
                 _profit = wantBalance;
             } else if (wantBalance > _profit.add(_debtOutstanding)){
                 _debtPayment = _debtOutstanding;
@@ -408,15 +408,15 @@ contract Strategy is BaseStrategy {
         if(_wantBal < _debtOutstanding){
             //this is graceful withdrawal. dont use backup
             //we use more than 1 because withdrawunderlying causes problems with 1 token due to different decimals
-            if(cToken.balanceOf(address(this)) > 1){ 
+            if(cToken.balanceOf(address(this)) > 1){
                 _withdrawSome(_debtOutstanding - _wantBal, false);
             }
 
             return;
         }
-        
+
         (uint256 position, bool deficit) = _calculateDesiredPosition(_wantBal - _debtOutstanding, true);
-        
+
         //if we are below minimun want change it is not worth doing
         //need to be careful in case this pushes to liquidation
         if (position > minWant) {
@@ -473,7 +473,9 @@ contract Strategy is BaseStrategy {
         if(collateralTarget > 0){
             AmountNeeded = borrowBalance.mul(1e18).div(collateralTarget);
         }
-        uint256 redeemable = depositBalance.sub(AmountNeeded);
+
+        uint256 redeemable = depositBalance > AmountNeeded ? depositBalance.sub(AmountNeeded) : depositBalance;
+        //uint256 redeemable = depositBalance.sub(AmountNeeded);
 
         if (redeemable < _amount) {
             cToken.redeemUnderlying(redeemable);
@@ -509,7 +511,7 @@ contract Strategy is BaseStrategy {
         uint256 desiredSupply = 0;
         if (dep) {
             desiredSupply = unwoundDeposit.add(balance);
-        } else { 
+        } else {
             if(balance > unwoundDeposit) balance = unwoundDeposit;
             desiredSupply = unwoundDeposit.sub(balance);
         }
@@ -557,12 +559,12 @@ contract Strategy is BaseStrategy {
             (uint256 deposits, uint256 borrows) = getLivePosition();
 
             //1 token causes rounding error with withdrawUnderlying
-            if(cToken.balanceOf(address(this)) > 1){ 
+            if(cToken.balanceOf(address(this)) > 1){
                 _withdrawSome(deposits.sub(borrows), true);
             }
 
             _amountFreed = Math.min(_amountNeeded, want.balanceOf(address(this)));
-           
+
         } else {
             if (_balance < _amountNeeded) {
                 _withdrawSome(_amountNeeded.sub(_balance), true);
@@ -666,6 +668,7 @@ contract Strategy is BaseStrategy {
     }
 
     //maxDeleverage is how much we want to increase by
+    event Debug(uint256 theoreticalBorrow, uint256 borrowed);
     function _normalLeverage(
         uint256 maxLeverage,
         uint256 lent,
@@ -673,6 +676,11 @@ contract Strategy is BaseStrategy {
         uint256 collatRatio
     ) internal returns (uint256 leveragedAmount) {
         uint256 theoreticalBorrow = lent.mul(collatRatio).div(1e18);
+
+        emit Debug(theoreticalBorrow, borrowed);
+        if (borrowed > theoreticalBorrow) {
+            return 0;
+        }
 
         leveragedAmount = theoreticalBorrow.sub(borrowed);
 

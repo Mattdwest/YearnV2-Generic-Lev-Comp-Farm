@@ -52,8 +52,7 @@ def uni_liquidity(accounts):
 
 @pytest.fixture
 def unitoken():
-    token_address = "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"
-    yield Contract(token_address)
+    yield Contract("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984")
 
 @pytest.fixture
 def cUni():
@@ -99,21 +98,22 @@ def newstrategy(
     newstrategy.setKeeper(keeper)
     yield newstrategy
 
+
 @pytest.fixture
 def uniLend():
-    address = "0x5e882c9f00209315e049B885B9b3dfbEe60D80A4"
-    yield Contract.from_explorer(address)
+    yield Contract("0x5e882c9f00209315e049B885B9b3dfbEe60D80A4")
+
 
 @pytest.fixture
 def me(accounts):
     yield accounts.at("0x1a123d835B006d27d4978C8EB40B14f08e0b8607", force=True)
 
+
 @pytest.fixture
 def liveGov(accounts):
     yield accounts.at("0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52", force=True)
 
+
 @pytest.fixture
 def liveVault():
-    address = "0xFBEB78a723b8087fD2ea7Ef1afEc93d35E8Bed42"
-    yield Contract.from_explorer(address)
-
+    yield Contract("0xFBEB78a723b8087fD2ea7Ef1afEc93d35E8Bed42")
