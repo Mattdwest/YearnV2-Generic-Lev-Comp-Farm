@@ -57,7 +57,7 @@ def unitoken():
 @pytest.fixture
 def cUni():
     token_address = "0x35A18000230DA775CAc24873d00Ff85BccdeD550"
-    proxy = "0xa1849880593E96d2f7dF77D0D38a7f2372aE10E0"
+    proxy = "0xa035b9e130F2B1AedC733eEFb1C67Ba4c503491F"
     yield Contract.from_explorer(token_address, as_proxy_for=proxy)
 
 @pytest.fixture
@@ -104,6 +104,10 @@ def uniLend():
     address = "0x5e882c9f00209315e049B885B9b3dfbEe60D80A4"
     yield Contract.from_explorer(address)
 
+@pytest.fixture
+def uniPool():
+    address = "0x6EB00860260CF51623737e17579Db797d71cd337"
+    yield Contract.from_explorer(address)
 
 @pytest.fixture
 def me(accounts):

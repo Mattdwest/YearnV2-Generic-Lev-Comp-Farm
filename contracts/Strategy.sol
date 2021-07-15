@@ -398,8 +398,8 @@ contract Strategy is BaseStrategy {
         if(_wantBal < _debtOutstanding){
             //this is graceful withdrawal. dont use backup
             //we use more than 1 because withdrawunderlying causes problems with 1 token due to different decimals
-            if(cToken.balanceOf(address(this)) > 1){ 
-                _withdrawSome(_debtOutstanding - _wantBal, false);
+            if(cToken.balanceOf(address(this)) > 1){
+                _withdrawSome(_debtOutstanding - _wantBal);
             }
 
             return;
@@ -427,7 +427,7 @@ contract Strategy is BaseStrategy {
      *
      * Deleverage position -> redeem our cTokens
      ******************** */
-    function _withdrawSome(uint256 _amount, bool _useBackup) internal returns (bool notAll) {
+    function _withdrawSome(uint256 _amount) internal returns (bool notAll) {
         (uint256 position, bool deficit) = _calculateDesiredPosition(_amount, false);
 
         //If there is no deficit we dont need to adjust position
@@ -447,16 +447,26 @@ contract Strategy is BaseStrategy {
         //This part makes sure our withdrawal does not force us into liquidation
         (uint256 depositBalance, uint256 borrowBalance) = getCurrentPosition();
 
-        uint256 AmountNeeded = 0;
-        if(collateralTarget > 0){
-            AmountNeeded = borrowBalance.mul(1e18).div(collateralTarget);
+        uint256 amountNeeded = 0;
+        if(collateralTarget == 0){
+            collateralTarget = 1e15; // 0.001 * 1e18. lower we have issues
         }
-        uint256 redeemable = depositBalance.sub(AmountNeeded);
 
-        if (redeemable < _amount) {
-            cToken.redeemUnderlying(redeemable);
-        } else {
-            cToken.redeemUnderlying(_amount);
+        amountNeeded = borrowBalance.mul(1e18).div(collateralTarget);
+
+        if(depositBalance >= amountNeeded){
+            uint256 redeemable = depositBalance.sub(amountNeeded);
+
+            if (redeemable < _amount) {
+                cToken.redeemUnderlying(redeemable);
+
+            } else {
+                cToken.redeemUnderlying(_amount);
+            }
+        }
+
+        if(collateralTarget == 0 && want.balanceOf(address(this)) > borrowBalance){
+            cToken.repayBorrow(borrowBalance);
         }
 
         //let's sell some comp if we have more than needed
@@ -535,15 +545,15 @@ contract Strategy is BaseStrategy {
             (uint256 deposits, uint256 borrows) = getLivePosition();
 
             //1 token causes rounding error with withdrawUnderlying
-            if(cToken.balanceOf(address(this)) > 1){ 
-                _withdrawSome(deposits.sub(borrows), true);
+            if(cToken.balanceOf(address(this)) > 1){
+                _withdrawSome(deposits.sub(borrows));
             }
 
             _amountFreed = Math.min(_amountNeeded, want.balanceOf(address(this)));
            
         } else {
             if (_balance < _amountNeeded) {
-                _withdrawSome(_amountNeeded.sub(_balance), true);
+                _withdrawSome(_amountNeeded.sub(_balance));
 
                 //overflow error if we return more than asked for
                 _amountFreed = Math.min(_amountNeeded, want.balanceOf(address(this)));
@@ -577,18 +587,20 @@ contract Strategy is BaseStrategy {
     //lets leave
     //if we can't deleverage in one go set collateralFactor to 0 and call harvest multiple times until delevered
     function prepareMigration(address _newStrategy) internal override {
-        (uint256 deposits, uint256 borrows) = getLivePosition();
-        _withdrawSome(deposits.sub(borrows), false);
 
-        (, , uint256 borrowBalance, ) = cToken.getAccountSnapshot(address(this));
+            (uint256 deposits, uint256 borrows) = getLivePosition();
+            _withdrawSome(deposits.sub(borrows));
 
-        require(borrowBalance == 0, "DELEVERAGE_FIRST");
+            (, , uint256 borrowBalance, ) = cToken.getAccountSnapshot(address(this));
 
-        IERC20 _comp = IERC20(comp);
-        uint _compB = _comp.balanceOf(address(this));
-        if(_compB > 0){
-            _comp.safeTransfer(_newStrategy, _compB);
-        }
+            require(borrowBalance < 10_000, "DELEVERAGE_FIRST");
+
+            IERC20 _comp = IERC20(comp);
+            uint _compB = _comp.balanceOf(address(this));
+            if(_compB > 0){
+                _comp.safeTransfer(_newStrategy, _compB);
+            }
+
     }
 
     //Three functions covering normal leverage and deleverage situations
@@ -637,10 +649,14 @@ contract Strategy is BaseStrategy {
             deleveragedAmount = maxDeleverage;
         }
 
-        cToken.redeemUnderlying(deleveragedAmount);
+        //rounding errors in compound internal maths means we need to underask
+        if(deleveragedAmount > 10){
+            deleveragedAmount = deleveragedAmount -10;
+            cToken.redeemUnderlying(deleveragedAmount);
 
-        //our borrow has been increased by no more than maxDeleverage
-        cToken.repayBorrow(deleveragedAmount);
+            //our borrow has been increased by no more than maxDeleverage
+            cToken.repayBorrow(deleveragedAmount);
+        }
     }
 
     //maxDeleverage is how much we want to increase by
@@ -657,9 +673,11 @@ contract Strategy is BaseStrategy {
         if (leveragedAmount >= maxLeverage) {
             leveragedAmount = maxLeverage;
         }
-
-        cToken.borrow(leveragedAmount);
-        cToken.mint(want.balanceOf(address(this)));
+        if(leveragedAmount > 10){
+            leveragedAmount = leveragedAmount -10;
+            cToken.borrow(leveragedAmount);
+            cToken.mint(want.balanceOf(address(this)));
+        }
     }
 
     function protectedTokens() internal override view returns (address[] memory) {

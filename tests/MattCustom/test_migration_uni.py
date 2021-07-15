@@ -25,6 +25,7 @@ def test_operation(
         bob,
         cUni,
         uniLend,
+        uniPool,
         gov,
         newstrategy,
 ):
@@ -47,8 +48,13 @@ def test_operation(
 
     liveVault.setManagementFee(0, {"from": liveGov})
     liveVault.setPerformanceFee(0, {"from": liveGov})
-    #liveVault.updateStrategyDebtRatio(uniLend, 1800, {"from": liveGov})
-    liveVault.addStrategy(strategy, 3_500, 0, 2 ** 256 - 1, 1_000, {"from": liveGov})
+    liveVault.updateStrategyDebtRatio(uniLend, 0, {"from": liveGov})
+    liveVault.updateStrategyDebtRatio(uniPool, 0_000, {"from": liveGov})
+    liveVault.addStrategy(strategy, 1_500, 0, 2 ** 256 - 1, 1_000, {"from": liveGov})
+
+    uniLend.harvest({"from": liveGov})
+    uniPool.harvest({"from": liveGov})
+    chain.mine(1)
 
     # first harvest
     chain.mine(1)
